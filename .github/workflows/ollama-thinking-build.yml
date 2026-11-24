@@ -43,6 +43,22 @@ jobs:
           git apply "$RUNNER_TEMP/thinking.patch"
           git diff --check
           git diff --stat
+      - name: Preserve user's Thinking preference across chat and model changes
+        working-directory: source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/ui/app/src/components/ChatForm.tsx")
+          src = p.read_text()
+          reset = "  // When a toggle-only thinking model is selected, sync the toggle to the\n  // model's advertised default. Guarded by a ref so it only fires on model\n  // change — not when setSettings gets a new identity after a settings refetch\n  // (which would cause an infinite update loop).\n  const lastSyncedModelRef = useRef<string | undefined>(undefined);\n  useEffect(() => {\n    if (\n      supportsThinkToggling &&\n      modelThinking &&\n      selectedModel?.model !== lastSyncedModelRef.current\n    ) {\n      lastSyncedModelRef.current = selectedModel?.model;\n      setSettings({ ThinkEnabled: modelThinking.default !== false });\n    }\n  }, [supportsThinkToggling, modelThinking?.default, selectedModel?.model, setSettings]);\n"
+          assert src.count(reset) == 1, "Expected exactly one upstream reset effect"
+          src = src.replace(reset, "  // Gama: retain the persisted Thinking preference on remount and model switch.\n")
+          assert "lastSyncedModelRef" not in src
+          assert "setSettings({ ThinkEnabled: modelThinking.default !== false })" not in src
+          p.write_text(src)
+          PY
+          git diff --check
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -81,7 +97,7 @@ jobs:
           printf 'Fork revision: %s\nPatch base: %s\nPatch head: %s\n' "$FORK_REV" "$PATCH_BASE" "$PATCH_HEAD" > BUILD-INFO.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: OllamaGPU-Thinking-Intel
+          name: OllamaGPU-Thinking-Intel-v2
           path: result/
           if-no-files-found: error
           retention-days: 7
