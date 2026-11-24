@@ -1,0 +1,87 @@
+name: Build OllamaGPU Thinking UI (Intel)
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ollama-thinking-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 25
+    env:
+      FORK_REV: dc3d6609e27fca7f9667147b37b939ed311bd8d4
+      PATCH_BASE: 8a89b76cc7359805e48357ba7e5b99e845a4c211
+      PATCH_HEAD: 0d8728f85fae6a84af1d3196ffa537db4330ddb3
+    steps:
+      - name: Fetch fixed source and reviewed upstream change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init source
+          cd source
+          git fetch --depth=1 https://github.com/baksogen/ollama_GPU.git "$FORK_REV"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$FORK_REV"
+          git fetch --depth=1 https://github.com/ollama/ollama.git "$PATCH_BASE"
+          git fetch --depth=1 https://github.com/ollama/ollama.git refs/pull/19648/head
+          test "$(git rev-parse FETCH_HEAD)" = "$PATCH_HEAD"
+          git diff --binary "$PATCH_BASE" "$PATCH_HEAD" -- \
+            app/ui/app/codegen/gotypes.gen.ts \
+            app/ui/app/src/api.ts \
+            app/ui/app/src/components/ChatForm.tsx \
+            app/ui/app/src/components/ThinkButton.tsx \
+            app/ui/app/src/hooks/useModelCapabilities.ts \
+            app/ui/responses/types.go \
+            app/ui/ui.go > "$RUNNER_TEMP/thinking.patch"
+          test -s "$RUNNER_TEMP/thinking.patch"
+          git apply --check "$RUNNER_TEMP/thinking.patch"
+          git apply "$RUNNER_TEMP/thinking.patch"
+          git diff --check
+          git diff --stat
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: source/go.mod
+          cache: false
+      - name: Build embedded desktop frontend
+        working-directory: source/app/ui/app
+        run: |
+          npm ci
+          npm run build
+      - name: Build Intel desktop executable only
+        working-directory: source
+        shell: bash
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+          CGO_ENABLED: '1'
+          CGO_CFLAGS: '-O3 -mmacosx-version-min=14.0'
+          CGO_CXXFLAGS: '-O3 -mmacosx-version-min=14.0'
+          CGO_LDFLAGS: '-mmacosx-version-min=14.0'
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/result"
+          go build -o "$GITHUB_WORKSPACE/result/Ollama" \
+            -ldflags='-s -w -X=github.com/ollama/ollama/app/version.Version=0.40.10-24-gdc3d660' \
+            ./app/cmd/app
+          file "$GITHUB_WORKSPACE/result/Ollama"
+          test "$(lipo -archs "$GITHUB_WORKSPACE/result/Ollama")" = x86_64
+          otool -L "$GITHUB_WORKSPACE/result/Ollama"
+          codesign --force --sign - "$GITHUB_WORKSPACE/result/Ollama"
+          codesign --verify --strict "$GITHUB_WORKSPACE/result/Ollama"
+          cd "$GITHUB_WORKSPACE/result"
+          shasum -a 256 Ollama > SHA256SUMS.txt
+          printf 'Fork revision: %s\nPatch base: %s\nPatch head: %s\n' "$FORK_REV" "$PATCH_BASE" "$PATCH_HEAD" > BUILD-INFO.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OllamaGPU-Thinking-Intel
+          path: result/
+          if-no-files-found: error
+          retention-days: 7
