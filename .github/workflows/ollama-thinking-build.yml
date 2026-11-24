@@ -79,6 +79,25 @@ jobs:
               p.write_text(content)
           PY
           git diff --check
+      - name: Route Cmd+Q to native graceful shutdown on macOS
+        working-directory: source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p = Path("app/cmd/app/app_darwin.m")
+          src = p.read_text()
+          for old, new in json.loads("[[\"    [appMenu addItemWithTitle:[NSString stringWithFormat:@\\\"Quit %@\\\", appName]\\n                       action:@selector(hide)\\n                keyEquivalent:@\\\"q\\\"];\",\"    // Gama: Cmd+Q follows the same graceful shutdown path as the tray menu.\\n    NSMenuItem *quitItem = [appMenu addItemWithTitle:[NSString stringWithFormat:@\\\"Quit %@\\\", appName]\\n                       action:@selector(requestQuit)\\n                keyEquivalent:@\\\"q\\\"];\\n    [quitItem setTarget:self];\"],[\"    // Otherwise just hide the app (for Cmd+Q, close button, etc.)\\n    [NSApp hide:nil];\\n    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];\\n    return NSTerminateCancel;\",\"    // Use requestQuit for normal termination so the native loop returns and Go\\n    // cancels and joins its own server. Preserve the system shutdown path above.\\n    [self requestQuit];\\n    return NSTerminateCancel;\"],[\"- (IBAction)terminate:(id)sender {\\n    [NSApp hide:nil];\\n    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];\\n}\",\"- (IBAction)terminate:(id)sender {\\n    [self requestQuit];\\n}\"]]"):
+              assert src.count(old) == 1, f"Unexpected anchor count: {old[:80]}"
+              src = src.replace(old, new)
+          assert 'action:@selector(performClose:) keyEquivalent:@"w"' in src
+          assert 'action:@selector(hide:)' in src
+          assert '[quitItem setTarget:self];' in src
+          assert '[NSApp stop:self];' in src
+          p.write_text(src)
+          PY
+          git diff --check
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -122,7 +141,7 @@ jobs:
           printf 'Fork revision: %s\nPatch base: %s\nPatch head: %s\n' "$FORK_REV" "$PATCH_BASE" "$PATCH_HEAD" > BUILD-INFO.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: OllamaGPU-Thinking-Intel-v3
+          name: OllamaGPU-Thinking-Intel-v4
           path: result/
           if-no-files-found: error
           retention-days: 7
