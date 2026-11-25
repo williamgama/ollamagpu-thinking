@@ -544,6 +544,11 @@
       "app/ui/ui.go",
       "\tif len(chat.Messages) > 0 {\n\t\tchat.Messages[len(chat.Messages)-1].Stream = false\n\t}\n\tif err := s.Store.SetChat(*chat); err != nil {\n\t\treturn err\n\t}\n\tjson.NewEncoder(w).Encode(responses.ChatEvent{EventName: \"done\"})",
       "\tif req.GamaSearch && len(chat.Messages)>0 && chat.Messages[len(chat.Messages)-1].Role==\"assistant\" {\n\t\tlast := &chat.Messages[len(chat.Messages)-1]\n\t\tlast.Content = gamaCleanCitations(last.Content,gamaSources) + gamaSourceFooter(gamaProvider,gamaSources)\n\t}\n\tif len(chat.Messages) > 0 {\n\t\tchat.Messages[len(chat.Messages)-1].Stream = false\n\t}\n\tif err := s.Store.SetChat(*chat); err != nil {\n\t\treturn err\n\t}\n\tjson.NewEncoder(w).Encode(responses.ChatEvent{EventName: \"done\"})"
+    ],
+    [
+      "app/ui/app/tsconfig.stories.json",
+      "\"types\": [\"@storybook/react-vite\"]",
+      "\"types\": [\"@storybook/react-vite\", \"vite/client\"]"
     ]
   ],
   "files": {
