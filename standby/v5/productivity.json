@@ -542,8 +542,8 @@
     ],
     [
       "app/ui/ui.go",
-      "\tjson.NewEncoder(w).Encode(responses.ChatEvent{EventName: \"done\"})\n\tflusher.Flush()\n\n\tif len(chat.Messages) > 0 {",
-      "\tif req.GamaSearch && len(chat.Messages)>0 && chat.Messages[len(chat.Messages)-1].Role==\"assistant\" {\n\t\tlast := &chat.Messages[len(chat.Messages)-1]\n\t\tlast.Content = gamaCleanCitations(last.Content,gamaSources) + gamaSourceFooter(gamaProvider,gamaSources)\n\t\tif err := s.Store.UpdateLastMessage(chat.ID,*last); err != nil { return err }\n\t}\n\tjson.NewEncoder(w).Encode(responses.ChatEvent{EventName: \"done\"})\n\tflusher.Flush()\n\n\tif len(chat.Messages) > 0 {"
+      "\tif len(chat.Messages) > 0 {\n\t\tchat.Messages[len(chat.Messages)-1].Stream = false\n\t}\n\tif err := s.Store.SetChat(*chat); err != nil {\n\t\treturn err\n\t}\n\tjson.NewEncoder(w).Encode(responses.ChatEvent{EventName: \"done\"})",
+      "\tif req.GamaSearch && len(chat.Messages)>0 && chat.Messages[len(chat.Messages)-1].Role==\"assistant\" {\n\t\tlast := &chat.Messages[len(chat.Messages)-1]\n\t\tlast.Content = gamaCleanCitations(last.Content,gamaSources) + gamaSourceFooter(gamaProvider,gamaSources)\n\t}\n\tif len(chat.Messages) > 0 {\n\t\tchat.Messages[len(chat.Messages)-1].Stream = false\n\t}\n\tif err := s.Store.SetChat(*chat); err != nil {\n\t\treturn err\n\t}\n\tjson.NewEncoder(w).Encode(responses.ChatEvent{EventName: \"done\"})"
     ]
   ],
   "files": {
