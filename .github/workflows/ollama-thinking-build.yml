@@ -1,9 +1,12 @@
-name: Build OllamaGPU Thinking UI (Intel)
+name: Build OllamaGPU V5 candidate (Intel)
 
 on:
   push:
+    branches: ['standby/v5-productivity']
     paths:
       - '.github/workflows/ollama-thinking-build.yml'
+      - 'standby/v5/productivity.json'
+      - 'standby/v5/apply_productivity.py'
   workflow_dispatch:
 
 permissions:
@@ -12,12 +15,16 @@ permissions:
 jobs:
   build:
     runs-on: macos-15-intel
-    timeout-minutes: 25
+    timeout-minutes: 40
     env:
       FORK_REV: dc3d6609e27fca7f9667147b37b939ed311bd8d4
       PATCH_BASE: 8a89b76cc7359805e48357ba7e5b99e845a4c211
       PATCH_HEAD: 0d8728f85fae6a84af1d3196ffa537db4330ddb3
     steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          persist-credentials: false
       - name: Fetch fixed source and reviewed upstream change
         shell: bash
         run: |
@@ -114,6 +121,13 @@ jobs:
           p.write_text(src)
           PY
           git diff --check
+      - name: Apply consolidated V5 patch after validated V4 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 candidate/standby/v5/apply_productivity.py source --check
+          python3 candidate/standby/v5/apply_productivity.py source
+          git -C source diff --check
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -124,13 +138,17 @@ jobs:
       - name: Test database migrations and response metrics roundtrip
         working-directory: source
         run: |
-          gofmt -w app/store/store.go app/store/database.go app/store/gama_performance_test.go app/ui/ui.go
-          go test ./app/store -run 'TestSchemaMigrations|TestSchemaVersioning|TestGamaPerformanceRoundtrip' -count=1
+          gofmt -w app/store/store.go app/store/database.go app/store/gama_*.go app/ui/ui.go app/ui/gama_*.go
+          go test ./app/store -run 'TestSchemaMigrations|TestSchemaVersioning|TestGama' -count=1
       - name: Build embedded desktop frontend
         working-directory: source/app/ui/app
         run: |
           npm ci
           npm run build
+          npm test -- --run src/components/gama/GamaModules.test.ts
+      - name: Test V5 backend
+        working-directory: source
+        run: go test ./app/ui -run '^TestGama' -count=1
       - name: Build Intel desktop executable only
         working-directory: source
         shell: bash
@@ -157,7 +175,7 @@ jobs:
           printf 'Fork revision: %s\nPatch base: %s\nPatch head: %s\n' "$FORK_REV" "$PATCH_BASE" "$PATCH_HEAD" > BUILD-INFO.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: OllamaGPU-Thinking-Intel-v5
+          name: OllamaGPU-Thinking-Intel-v5-candidate
           path: result/
           if-no-files-found: error
           retention-days: 7
