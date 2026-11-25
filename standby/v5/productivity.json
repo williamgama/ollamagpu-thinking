@@ -134,6 +134,61 @@
       "app/ui/app/src/components/Message.tsx",
       "{message.performance && <ResponsePerformancePanel performance={message.performance} model={message.model} />}",
       "<GamaContext.Consumer>{flags => (flags & GAMA_PERFORMANCE) !== 0 && message.performance ? <ResponsePerformancePanel performance={message.performance} model={message.model} /> : null}</GamaContext.Consumer>"
+    ],
+    [
+      "app/updater/updater.go",
+      "func (u *Updater) StartBackgroundUpdaterChecker(ctx context.Context, cb func(string) error) {\n\tu.startBackgroundUpdaterChecker(ctx, cb)\n}",
+      "// GamaManagedDesktop disables upstream bundle replacement in this custom build.\nconst GamaManagedDesktop = true\n\nfunc (u *Updater) StartBackgroundUpdaterChecker(ctx context.Context, cb func(string) error) {\n\tif GamaManagedDesktop { return }\n\tu.startBackgroundUpdaterChecker(ctx, cb)\n}"
+    ],
+    [
+      "app/updater/updater_darwin.go",
+      "func DoUpgrade(interactive bool) error {",
+      "func DoUpgrade(interactive bool) error {\n\tif GamaManagedDesktop { return fmt.Errorf(\"Gama edition: install only a verified custom release manually\") }"
+    ],
+    [
+      "app/updater/updater_darwin.go",
+      "func DoUpgradeAtStartup() error {",
+      "func DoUpgradeAtStartup() error {\n\tif GamaManagedDesktop { return fmt.Errorf(\"Gama edition: automatic upgrades disabled\") }"
+    ],
+    [
+      "app/updater/updater_darwin.go",
+      "func IsUpdatePending() bool {\n\treturn getStagedUpdate() != \"\"\n}",
+      "func IsUpdatePending() bool {\n\treturn !GamaManagedDesktop && getStagedUpdate() != \"\"\n}"
+    ],
+    [
+      "app/cmd/app/app.go",
+      "if _, err := os.Stat(updater.UpgradeMarkerFile); err == nil {",
+      "if _, err := os.Stat(updater.UpgradeMarkerFile); !updater.GamaManagedDesktop && err == nil {"
+    ],
+    [
+      "app/cmd/app/app.go",
+      "if !skipMove && !fastStartup {",
+      "if !updater.GamaManagedDesktop && !skipMove && !fastStartup {"
+    ],
+    [
+      "app/cmd/app/app_darwin.go",
+      "func UpdateAvailable(ver string) error {\n",
+      "func UpdateAvailable(ver string) error {\n\tif updater.GamaManagedDesktop { return nil }\n"
+    ],
+    [
+      "app/cmd/app/app_darwin.go",
+      "\tregisterLaunchAgent(hasCompletedFirstRun)\n",
+      "\t// The custom bundle must not register the shared upstream Squirrel login agent.\n\tif !updater.GamaManagedDesktop { registerLaunchAgent(hasCompletedFirstRun) }\n"
+    ],
+    [
+      "app/ui/app/src/components/Settings.tsx",
+      "        AutoUpdateEnabled: true,\n        GamaModules: 1,",
+      "        AutoUpdateEnabled: currentSettings.AutoUpdateEnabled,\n        GamaModules: 1,"
+    ],
+    [
+      "app/ui/app/src/components/Settings.tsx",
+      "<Description>\n                        {settings.AutoUpdateEnabled\n                          ? \"Automatically download updates when available.\"\n                          : \"Updates will not be downloaded automatically.\"}\n                      </Description>",
+      "<Description>\n                        Gama: atualizações somente por instalação manual de uma versão verificada.\n                      </Description>"
+    ],
+    [
+      "app/ui/app/src/components/Settings.tsx",
+      "<Switch\n                      checked={settings.AutoUpdateEnabled}\n                      onChange={(checked) =>\n                        handleChange(\"AutoUpdateEnabled\", checked)\n                      }\n                    />",
+      "<Switch checked={false} disabled aria-label=\"Atualizações automáticas indisponíveis na edição Gama\" />"
     ]
   ],
   "files": {
