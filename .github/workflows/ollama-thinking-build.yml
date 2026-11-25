@@ -98,6 +98,22 @@ jobs:
           p.write_text(src)
           PY
           git diff --check
+      - name: Disable automatic privileged CLI installation in the custom edition
+        working-directory: source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/cmd/app/app.go")
+          src = p.read_text()
+          old = '\t// on macOS, offer the user to create a symlink\n\t// from /usr/local/bin/ollama to the app bundle\n\tinstallSymlink()'
+          new = '\t// Gama: CLI is available inside the bundle; preserve existing system CLI.\n\t// Do not request privileged symlink installation on desktop startup.'
+          assert src.count(old) == 1, "Unexpected CLI installer call site"
+          src = src.replace(old, new)
+          assert '\n\tinstallSymlink()' not in src
+          p.write_text(src)
+          PY
+          git diff --check
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -141,7 +157,7 @@ jobs:
           printf 'Fork revision: %s\nPatch base: %s\nPatch head: %s\n' "$FORK_REV" "$PATCH_BASE" "$PATCH_HEAD" > BUILD-INFO.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: OllamaGPU-Thinking-Intel-v4
+          name: OllamaGPU-Thinking-Intel-v5
           path: result/
           if-no-files-found: error
           retention-days: 7
